@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Paint Canvas</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            padding: 0;
+            margin: 0;
+        }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            background-color: transparent;
+            position: absolute;
+        }
+        canvas:not(#tools) {
+            border: red solid thin;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <!-- <canvas id="paintArea"></canvas> -->
+        <canvas id="tools"></canvas>
+    </div>
+
+    <script>
+
+        const container = document.getElementById('container');
+
+        const cp = document.getElementById('tools');
+        let windowW = cp.width = window.innerWidth;
+        let windowH = cp.height = window.innerHeight;
+        const ctx = cp.getContext('2d');
+
+        // const pa = document.getElementById('paintArea');
+        // pa.width = 500;
+        // pa.height = 500;
+        // const ctxPA = pa.getContext('2d');
+
+        const toolKit = {
+            x: (innerWidth - 60),
+            y: 0,
+            w: 60,
+            h: windowH,
+            padding: 4
+        };
+
+        const tools = {
+            pencil: {
+                img:''
+            },
+            eraser: {
+                img:''
+            },
+            // colors: {},
+            newLayer: {},
+            // layersList: {}
+        };
+
+        const appState = {
+            do: false,
+            currentTool: 'pencil',
+            toolWidth: 20,
+            pencilColor: 'green',
+            pencilColorOpacity: 0.5,
+            prev_x: 0,
+            prev_y: 0,
+            layers: [],
+        };
+
+        function init() {
+            // Toolkit
+            ctx.fillStyle = '#999';
+            ctx.fillRect( toolKit.x, toolKit.y, toolKit.w, toolKit.h );
+
+            let toolPositionY = 0;
+
+            for ( let item in tools ) {
+
+                const w = tools[item].w = toolKit.w - (toolKit.padding * 2);
+                const h = tools[item].h = toolKit.w - (toolKit.padding * 2);
+                const x = tools[item].x = toolKit.x + toolKit.padding;
+                const y = tools[item].y = toolKit.padding + (toolPositionY * h) + (toolKit.padding * toolPositionY) + (toolPositionY * 2);
+
+                ctx.fillStyle = '#fff';
+                ctx.fillRect( x, y, w, h );
+                toolPositionY++;
+
+            }
+
+            ['mouseup', 'mouseleave'].forEach(ev => window.addEventListener(ev, function(){ appState.do = false }));
+
+            window.addEventListener('mousedown', function(ev){ 
+                appState.do = true;
+                appState.prev_x = ev.pageX;
+                appState.prev_y = ev.pageY;
+            });
+            
+            window.addEventListener('mousemove', mouseMove);
+
+            addLayer();
+        }
+
+        function mouseMove(ev) {
+            if( appState.do ) {
+                doToolAction(appState.currentTool, ev.pageX, ev.pageY);
+                appState.prev_x = ev.pageX;
+                appState.prev_y = ev.pageY;
+            }
+        }
+
+        function isIntersect(mousePoint, element) {
+            return ( 
+                mousePoint.x > element.x &&
+                mousePoint.x < (element.w + element.x) &&
+                mousePoint.y > element.y &&
+                mousePoint.y < (element.h + element.y)
+            );
+        }
+
+        function paintEraseCommon(x, y) {
+            const layerCtx = appState.layers[appState.layers.length - 1].ctx;
+            layerCtx.beginPath();
+            layerCtx.lineWidth = appState.toolWidth;
+            layerCtx.lineCap = 'round';
+            layerCtx.strokeStyle = appState.pencilColor;
+            layerCtx.moveTo(appState.prev_x, appState.prev_y);
+            layerCtx.lineTo(x, y);
+            layerCtx.stroke();
+        }
+
+        function paint(mouse_x, mouse_y) {
+            const layerCtx = appState.layers[appState.layers.length - 1].ctx;
+            layerCtx.globalCompositeOperation = 'source-over';
+            paintEraseCommon(mouse_x, mouse_y);
+        }
+
+        function erase(mouse_x, mouse_y) {
+            const layerCtx = appState.layers[appState.layers.length - 1].ctx;
+            layerCtx.globalCompositeOperation = 'destination-out';
+            paintEraseCommon(mouse_x, mouse_y);
+        }
+
+        function showPalette() {
+            // show color palette
+        }
+
+        function doToolAction(tool, mouse_x, mouse_y) {
+            console.log('tool', tool);
+            switch (tool) {
+                case 'pencil':
+                    paint(mouse_x, mouse_y);
+                    break;
+                case 'eraser':
+                    erase(mouse_x, mouse_y);
+                    break;
+                case 'colors':
+                    showPalette();
+                    break;
+                case 'newLayer':
+                    addLayer();
+                    appState.currentTool = null;
+                    break;
+                default:
+                    // console.log('default ??');
+                    break;
+            }
+        }
+
+        cp.addEventListener('click', (e) => {
+
+            const mousePoint = {
+                x: e.clientX,
+                y: e.clientY
+            };
+
+            for ( let tool in tools ) {
+                if ( isIntersect(mousePoint, tools[tool]) ) {
+                    appState.currentTool = tool;
+                    doToolAction(tool, mousePoint.x, mousePoint.y);
+                }
+            }
+        });
+
+        function Layer() {
+            this.enabled = true;
+            // this.topLayer = false;
+        }
+
+        function addLayer() {
+
+            appState.layers.push(new Layer());
+            const newLayerId = appState.layers.length - 1;
+            const newCanvas = document.createElement('canvas');
+            newCanvas.setAttribute('id', newLayerId);
+            container.appendChild(newCanvas);
+
+            appState.layers[newLayerId].id = newLayerId;
+            appState.layers[newLayerId].element = document.getElementById(newLayerId);
+            appState.layers[newLayerId].element.width = 500;
+            appState.layers[newLayerId].element.height = 500;
+            appState.layers[newLayerId].ctx = appState.layers[newLayerId].element.getContext('2d');
+
+        }
+
+        function newContextLayer() {}
+
+        function removeLayer(id) {
+            document.getElementById(id).remove();
+        }
+
+        init();
+
+/*
+var drawing = false;
+var prev = {};
+var globalBrushSize = 3, globalBrushColor="#0000FF";
+
+var doc = $(document),
+    win = $(window),
+    canvas = $('#background'),
+    ctx = canvas[0].getContext('2d');
+
+    canvas.on('mousedown',function(e){
+        e.preventDefault();
+        drawing = true;
+        prev.x = e.pageX;
+        prev.y = e.pageY;
+            
+    });
+	
+	doc.bind('mouseup mouseleave',function(){
+		drawing = false;
+	});
+
+
+	doc.on('mousemove',function(e){
+		// Draw a line for the current user's movement
+		if(drawing){
+			
+			drawLine(prev.x, prev.y, e.pageX, e.pageY);
+			
+			prev.x = e.pageX;
+			prev.y = e.pageY;
+		}
+	});
+
+
+	function drawLine(fromx, fromy, tox, toy){
+		ctx.beginPath();
+		ctx.lineWidth = globalBrushSize;
+		ctx.strokeStyle = globalBrushColor;
+		ctx.moveTo(fromx, fromy);
+		ctx.lineTo(tox, toy);
+		ctx.stroke();
+	}
+*/
+
+    </script>
+</body>
+</html>
