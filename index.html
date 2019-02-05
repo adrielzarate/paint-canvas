@@ -41,10 +41,8 @@
         let windowH = cp.height = window.innerHeight;
         const ctx = cp.getContext('2d');
 
-        // const pa = document.getElementById('paintArea');
-        // pa.width = 500;
-        // pa.height = 500;
-        // const ctxPA = pa.getContext('2d');
+        // ctx.fillStyle = 'red';
+        // ctx.fillRect(0, 0, windowW, windowH);
 
         const toolKit = {
             x: (innerWidth - 60),
@@ -68,6 +66,7 @@
 
         const appState = {
             do: false,
+            prevTool: null,
             currentTool: 'pencil',
             toolWidth: 20,
             pencilColor: 'green',
@@ -76,6 +75,11 @@
             prev_y: 0,
             layers: [],
         };
+
+        function drawTools(x, y, w, h) {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect( x, y, w, h );
+        }
 
         function init() {
             // Toolkit
@@ -90,9 +94,7 @@
                 const h = tools[item].h = toolKit.w - (toolKit.padding * 2);
                 const x = tools[item].x = toolKit.x + toolKit.padding;
                 const y = tools[item].y = toolKit.padding + (toolPositionY * h) + (toolKit.padding * toolPositionY) + (toolPositionY * 2);
-
-                ctx.fillStyle = '#fff';
-                ctx.fillRect( x, y, w, h );
+                drawTools(x, y, w, h);
                 toolPositionY++;
 
             }
@@ -150,12 +152,9 @@
             paintEraseCommon(mouse_x, mouse_y);
         }
 
-        function showPalette() {
-            // show color palette
-        }
+        function showPalette() {}
 
         function doToolAction(tool, mouse_x, mouse_y) {
-            console.log('tool', tool);
             switch (tool) {
                 case 'pencil':
                     paint(mouse_x, mouse_y);
@@ -168,12 +167,32 @@
                     break;
                 case 'newLayer':
                     addLayer();
-                    appState.currentTool = null;
+                    let prevTool = appState.currentTool;
+                    setTimeout(function() {
+                        removeHighlightTool();
+                        highlightTool(appState.prevTool);
+                        doToolAction(appState.prevTool, mouse_x, mouse_y);
+                        appState.currentTool = appState.prevTool;
+                    }, 100);
+                    
                     break;
                 default:
                     // console.log('default ??');
                     break;
             }
+        }
+
+        function removeHighlightTool() {
+            for ( let tool in tools ) {
+                drawTools( tools[tool].x, tools[tool].y, tools[tool].w, tools[tool].h );
+            }
+        }
+
+        function highlightTool(tool) {
+            removeHighlightTool();
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 1;
+            ctx.strokeRect( tools[tool].x + 1, tools[tool].y + 1, tools[tool].w - 2 , tools[tool].h - 2 );
         }
 
         cp.addEventListener('click', (e) => {
@@ -183,22 +202,25 @@
                 y: e.clientY
             };
 
+            appState.prevTool = appState.currentTool;
+
             for ( let tool in tools ) {
                 if ( isIntersect(mousePoint, tools[tool]) ) {
                     appState.currentTool = tool;
+                    highlightTool(tool);
                     doToolAction(tool, mousePoint.x, mousePoint.y);
                 }
             }
         });
 
         function Layer() {
-            this.enabled = true;
+            // this.enabled = true;
             // this.topLayer = false;
         }
 
         function addLayer() {
 
-            appState.layers.push(new Layer());
+            appState.layers.push({});
             const newLayerId = appState.layers.length - 1;
             const newCanvas = document.createElement('canvas');
             newCanvas.setAttribute('id', newLayerId);
@@ -212,58 +234,11 @@
 
         }
 
-        function newContextLayer() {}
-
         function removeLayer(id) {
             document.getElementById(id).remove();
         }
 
         init();
-
-/*
-var drawing = false;
-var prev = {};
-var globalBrushSize = 3, globalBrushColor="#0000FF";
-
-var doc = $(document),
-    win = $(window),
-    canvas = $('#background'),
-    ctx = canvas[0].getContext('2d');
-
-    canvas.on('mousedown',function(e){
-        e.preventDefault();
-        drawing = true;
-        prev.x = e.pageX;
-        prev.y = e.pageY;
-            
-    });
-	
-	doc.bind('mouseup mouseleave',function(){
-		drawing = false;
-	});
-
-
-	doc.on('mousemove',function(e){
-		// Draw a line for the current user's movement
-		if(drawing){
-			
-			drawLine(prev.x, prev.y, e.pageX, e.pageY);
-			
-			prev.x = e.pageX;
-			prev.y = e.pageY;
-		}
-	});
-
-
-	function drawLine(fromx, fromy, tox, toy){
-		ctx.beginPath();
-		ctx.lineWidth = globalBrushSize;
-		ctx.strokeStyle = globalBrushColor;
-		ctx.moveTo(fromx, fromy);
-		ctx.lineTo(tox, toy);
-		ctx.stroke();
-	}
-*/
 
     </script>
 </body>
