@@ -61,7 +61,7 @@
             },
             // colors: {},
             newLayer: {},
-            // layersList: {}
+            layersList: {}
         };
 
         const appState = {
@@ -89,14 +89,12 @@
             let toolPositionY = 0;
 
             for ( let item in tools ) {
-
                 const w = tools[item].w = toolKit.w - (toolKit.padding * 2);
                 const h = tools[item].h = toolKit.w - (toolKit.padding * 2);
                 const x = tools[item].x = toolKit.x + toolKit.padding;
                 const y = tools[item].y = toolKit.padding + (toolPositionY * h) + (toolKit.padding * toolPositionY) + (toolPositionY * 2);
                 drawTools(x, y, w, h);
                 toolPositionY++;
-
             }
 
             ['mouseup', 'mouseleave'].forEach(ev => window.addEventListener(ev, function(){ appState.do = false }));
@@ -109,7 +107,9 @@
             
             window.addEventListener('mousemove', mouseMove);
 
+            highlightTool(appState.currentTool);
             addLayer();
+            drawLayerInMenu();
         }
 
         function mouseMove(ev) {
@@ -152,7 +152,25 @@
             paintEraseCommon(mouse_x, mouse_y);
         }
 
-        function showPalette() {}
+        function clickOutOption(mouse_x, mouse_y) {
+            setTimeout(function() {
+                removeHighlightTool();
+                highlightTool(appState.prevTool);
+                doToolAction(appState.prevTool, mouse_x, mouse_y);
+                appState.currentTool = appState.prevTool;
+            }, 100);
+        }
+
+        function drawLayerInMenu() {
+            ctx.fillStyle = 'blue';
+            let verticalPos = 0;
+
+            for ( let layer in appState.layers ) {
+                ctx.fillRect( tools.layersList.x + 5, tools.layersList.y + 5 + ( 20 * verticalPos ) + ( 5 * verticalPos ), 20, 20 );
+                verticalPos++;
+            }
+            
+        }
 
         function doToolAction(tool, mouse_x, mouse_y) {
             switch (tool) {
@@ -167,14 +185,11 @@
                     break;
                 case 'newLayer':
                     addLayer();
-                    let prevTool = appState.currentTool;
-                    setTimeout(function() {
-                        removeHighlightTool();
-                        highlightTool(appState.prevTool);
-                        doToolAction(appState.prevTool, mouse_x, mouse_y);
-                        appState.currentTool = appState.prevTool;
-                    }, 100);
-                    
+                    clickOutOption(mouse_x, mouse_y);
+                    break;
+                case 'layersList':
+                    addLayerInMenu();
+                    clickOutOption(mouse_x, mouse_y);
                     break;
                 default:
                     // console.log('default ??');
@@ -186,6 +201,7 @@
             for ( let tool in tools ) {
                 drawTools( tools[tool].x, tools[tool].y, tools[tool].w, tools[tool].h );
             }
+            drawLayerInMenu();
         }
 
         function highlightTool(tool) {
@@ -213,10 +229,10 @@
             }
         });
 
-        function Layer() {
+        // function Layer() {
             // this.enabled = true;
             // this.topLayer = false;
-        }
+        // }
 
         function addLayer() {
 
